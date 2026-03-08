@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import MapView from '@/components/MapView';
 import PetProfile from '@/components/PetProfile';
+import VetBert from '@/components/VetBert';
+
+const VETBERT_URL = 'https://functions.poehali.dev/12f25ae3-c3fd-4bde-99e1-7019420bee8a';
 
 type Screen = 'home' | 'map' | 'profile' | 'market';
 
@@ -312,6 +315,8 @@ export default function Index() {
         )}
         {screen === 'market' && <MarketScreen />}
       </div>
+
+      <VetBert apiUrl={VETBERT_URL} />
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full flex border-t"
         style={{ maxWidth: 480, background: '#0a0c0e', borderColor: '#2a2d33' }}>
