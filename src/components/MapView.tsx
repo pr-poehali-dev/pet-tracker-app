@@ -38,7 +38,29 @@ const CLINICS: Clinic[] = [
   { id: 2, name: 'Пушистик Клиник', address: 'пр. Мира, 44', phone: '+7 495 987-65-43', rating: 4.7, distance: '0.8 км', hours: '08:00–22:00', open: true, x: 78, y: 72, speciality: 'Стоматология, УЗИ' },
   { id: 3, name: 'Vet24', address: 'ул. Ленина, 5', phone: '+7 495 555-00-11', rating: 4.5, distance: '1.2 км', hours: 'Круглосуточно', open: true, x: 30, y: 68, speciality: 'Скорая помощь' },
   { id: 4, name: 'ZooMed', address: 'бул. Цветной, 8', phone: '+7 495 222-33-44', rating: 4.3, distance: '1.7 км', hours: '10:00–20:00', open: false, x: 48, y: 35, speciality: 'Дерматология, груминг' },
+  { id: 5, name: 'АниВет', address: 'ул. Горького, 31', phone: '+7 495 311-22-55', rating: 4.6, distance: '0.6 км', hours: '08:00–23:00', open: true, x: 55, y: 80, speciality: 'Хирургия, онкология' },
+  { id: 6, name: 'ЗооДент', address: 'пер. Тихий, 7', phone: '+7 495 400-10-20', rating: 4.4, distance: '1.5 км', hours: '10:00–19:00', open: false, x: 22, y: 42, speciality: 'Стоматология' },
 ];
+
+type FilterTag = 'все' | 'открыто' | 'круглосуточно' | 'хирургия' | 'стоматология' | 'скорая' | 'дерматология' | 'терапия';
+
+const FILTERS: { id: FilterTag; label: string; emoji: string }[] = [
+  { id: 'все', label: 'Все', emoji: '🔍' },
+  { id: 'открыто', label: 'Открыто', emoji: '🟢' },
+  { id: 'круглосуточно', label: '24 часа', emoji: '🌙' },
+  { id: 'хирургия', label: 'Хирургия', emoji: '🔪' },
+  { id: 'стоматология', label: 'Стоматология', emoji: '🦷' },
+  { id: 'скорая', label: 'Скорая', emoji: '🚑' },
+  { id: 'терапия', label: 'Терапия', emoji: '💊' },
+  { id: 'дерматология', label: 'Дерматология', emoji: '🧴' },
+];
+
+function matchFilter(clinic: Clinic, filter: FilterTag): boolean {
+  if (filter === 'все') return true;
+  if (filter === 'открыто') return clinic.open;
+  if (filter === 'круглосуточно') return clinic.hours.toLowerCase().includes('круглосуточно');
+  return clinic.speciality.toLowerCase().includes(filter);
+}
 
 const STATUS_MAP = {
   online: { label: 'Онлайн', color: '#107c10' },
@@ -54,6 +76,10 @@ export default function MapView() {
   const [positions, setPositions] = useState(PETS.map(p => ({ id: p.id, x: 0, y: 0 })));
   const [tick, setTick] = useState(0);
   const [mode, setMode] = useState<MapMode>('pets');
+  const [activeFilter, setActiveFilter] = useState<FilterTag>('все');
+
+  const filteredClinics = CLINICS.filter(c => matchFilter(c, activeFilter))
+    .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 
   useEffect(() => {
     const t = setInterval(() => setTick(v => v + 1), 3000);
@@ -168,7 +194,7 @@ export default function MapView() {
         })}
 
         {/* Clinic markers */}
-        {mode === 'clinics' && CLINICS.map(clinic => {
+        {mode === 'clinics' && filteredClinics.map(clinic => {
           const isSelected = selectedClinic?.id === clinic.id;
           return (
             <button
@@ -286,6 +312,38 @@ export default function MapView() {
       {/* --- CLINICS MODE --- */}
       {mode === 'clinics' && (
         <div className="mx-4 mt-2 flex-1 overflow-y-auto pb-4">
+
+          {/* Filter chips */}
+          <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 -mx-0">
+            {FILTERS.map(f => {
+              const isActive = activeFilter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => { setActiveFilter(f.id); setSelectedClinic(null); }}
+                  className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-golos font-bold uppercase tracking-wide metro-tile transition-all"
+                  style={{
+                    background: isActive ? '#e81123' : '#1a1d21',
+                    color: isActive ? '#fff' : '#ffffff55',
+                    border: `1px solid ${isActive ? '#e81123' : '#2a2d33'}`,
+                  }}
+                >
+                  <span>{f.emoji}</span>
+                  <span>{f.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Count line */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-px flex-1" style={{ background: '#2a2d33' }} />
+            <span className="text-[10px] font-golos text-white/30 uppercase tracking-widest">
+              {filteredClinics.length} клиник
+            </span>
+            <div className="h-px flex-1" style={{ background: '#2a2d33' }} />
+          </div>
+
           {/* Selected clinic detail */}
           {selectedClinic && (
             <div className="mb-3 border-2 p-4 metro-fade-up"
@@ -327,10 +385,17 @@ export default function MapView() {
 
           {/* Clinics list */}
           <div className="space-y-1.5">
-            <p className="text-xs font-golos text-white/30 uppercase tracking-widest mb-2">
-              Ближайшие клиники
-            </p>
-            {CLINICS.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance)).map((clinic, i) => (
+            {filteredClinics.length === 0 && (
+              <div className="py-8 text-center">
+                <p className="text-2xl mb-2">🔍</p>
+                <p className="text-sm font-golos text-white/40">Клиники не найдены</p>
+                <button onClick={() => setActiveFilter('все')}
+                  className="mt-3 px-4 py-2 text-xs font-golos font-bold uppercase text-metro-teal border border-metro-teal metro-tile">
+                  Сбросить фильтр
+                </button>
+              </div>
+            )}
+            {filteredClinics.map((clinic, i) => (
               <button
                 key={clinic.id}
                 onClick={() => setSelectedClinic(selectedClinic?.id === clinic.id ? null : clinic)}
