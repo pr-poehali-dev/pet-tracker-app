@@ -14,5 +14,12 @@
       "body": {"action": "submit_story", "pet_name": "", "title": "", "story": ""},
       "expectedStatus": 400
     }
+  ,{
+      "name": "Admin access denied without token",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "admin_stats", "admin_token": "wrong"},
+      "expectedStatus": 403
+    }
   ]
 }

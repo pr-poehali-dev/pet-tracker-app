@@ -207,5 +207,125 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return ok({'stories': stories})
 
+    # --- ADMIN ACTIONS ---
+    def check_admin():
+        token = (body.get('admin_token') or '').strip()
+        return token == os.environ.get('ADMIN_TOKEN', '')
+
+    if action == 'admin_get_stories':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        status_filter = body.get('status', 'pending')
+        cur.execute(
+            f"SELECT id, author_phone, pet_name, title, story, status, created_at "
+            f"FROM {s}.user_stories WHERE status = '{status_filter}' ORDER BY created_at DESC"
+        )
+        stories = [
+            {'id': r[0], 'author': r[1] or 'Аноним', 'pet_name': r[2],
+             'title': r[3], 'story': r[4], 'status': r[5], 'created_at': str(r[6])}
+            for r in cur.fetchall()
+        ]
+        cur.close(); conn.close()
+        return ok({'stories': stories})
+
+    if action == 'admin_update_story':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        story_id = int(body.get('story_id', 0))
+        new_status = body.get('status', '')
+        if new_status not in ('approved', 'rejected', 'pending'):
+            cur.close(); conn.close()
+            return err('Неверный статус')
+        cur.execute(f"UPDATE {s}.user_stories SET status = '{new_status}' WHERE id = {story_id}")
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({'success': True})
+
+    if action == 'admin_get_articles':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        cur.execute(
+            f"SELECT id, title, category, emoji, author, published_at, views, is_published "
+            f"FROM {s}.articles ORDER BY published_at DESC"
+        )
+        articles = [
+            {'id': r[0], 'title': r[1], 'category': r[2], 'emoji': r[3],
+             'author': r[4], 'published_at': str(r[5]), 'views': r[6], 'is_published': r[7]}
+            for r in cur.fetchall()
+        ]
+        cur.close(); conn.close()
+        return ok({'articles': articles})
+
+    if action == 'admin_toggle_article':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        article_id = int(body.get('article_id', 0))
+        cur.execute(
+            f"UPDATE {s}.articles SET is_published = NOT is_published WHERE id = {article_id} RETURNING is_published"
+        )
+        new_state = cur.fetchone()[0]
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({'success': True, 'is_published': new_state})
+
+    if action == 'admin_delete_comment':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        comment_id = int(body.get('comment_id', 0))
+        cur.execute(f"UPDATE {s}.comments SET text = '[удалено]' WHERE id = {comment_id}")
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({'success': True})
+
+    if action == 'admin_add_article':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        title = (body.get('title') or '').strip().replace("'", "''")
+        excerpt = (body.get('excerpt') or '').strip().replace("'", "''")
+        content = (body.get('content') or '').strip().replace("'", "''")
+        category = (body.get('category') or 'Общее').replace("'", "''")
+        emoji = (body.get('emoji') or '🐾').replace("'", "''")
+        author = (body.get('author') or 'Редакция').replace("'", "''")
+        if not title or not excerpt or not content:
+            cur.close(); conn.close()
+            return err('Заполните все поля')
+        cur.execute(
+            f"INSERT INTO {s}.articles (title, excerpt, content, category, emoji, author) "
+            f"VALUES ('{title}', '{excerpt}', '{content}', '{category}', '{emoji}', '{author}') RETURNING id"
+        )
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({'success': True, 'id': new_id})
+
+    if action == 'admin_stats':
+        if not check_admin():
+            cur.close(); conn.close()
+            return err('Нет доступа', 403)
+        cur.execute(f"SELECT COUNT(*) FROM {s}.users")
+        users_count = cur.fetchone()[0]
+        cur.execute(f"SELECT COUNT(*) FROM {s}.articles WHERE is_published = TRUE")
+        articles_count = cur.fetchone()[0]
+        cur.execute(f"SELECT COUNT(*) FROM {s}.comments")
+        comments_count = cur.fetchone()[0]
+        cur.execute(f"SELECT COUNT(*) FROM {s}.user_stories WHERE status = 'pending'")
+        pending_stories = cur.fetchone()[0]
+        cur.execute(f"SELECT COUNT(*) FROM {s}.user_stories WHERE status = 'approved'")
+        approved_stories = cur.fetchone()[0]
+        cur.close(); conn.close()
+        return ok({
+            'users': users_count,
+            'articles': articles_count,
+            'comments': comments_count,
+            'pending_stories': pending_stories,
+            'approved_stories': approved_stories,
+        })
+
     cur.close(); conn.close()
     return err('Неизвестное действие')
