@@ -5,7 +5,26 @@ import string
 import psycopg2
 import urllib.request
 import urllib.parse
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
+
+
+def send_admin_email(subject: str, html: str):
+    admin_email = os.environ.get('ADMIN_EMAIL', '')
+    gmail_password = os.environ.get('GMAIL_APP_PASSWORD', '')
+    if not admin_email or not gmail_password:
+        return
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = admin_email
+    msg['To'] = admin_email
+    msg.attach(MIMEText(html, 'html', 'utf-8'))
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(admin_email, gmail_password.replace(' ', ''))
+        server.sendmail(admin_email, admin_email, msg.as_string())
+    print(f'[EMAIL] Уведомление отправлено на {admin_email}')
 
 
 def send_sms(phone: str, code: str) -> bool:
@@ -149,6 +168,7 @@ def handler(event: dict, context) -> dict:
 
         cur.execute(f"SELECT id FROM {schema}.users WHERE phone = '{phone}'")
         user = cur.fetchone()
+        is_new = False
         if user:
             user_id = user[0]
             cur.execute(f"UPDATE {schema}.users SET last_login = NOW() WHERE id = {user_id}")
@@ -157,10 +177,54 @@ def handler(event: dict, context) -> dict:
                 f"INSERT INTO {schema}.users (phone, last_login) VALUES ('{phone}', NOW()) RETURNING id"
             )
             user_id = cur.fetchone()[0]
+            is_new = True
+
+        # Считаем общее число пользователей для письма
+        cur.execute(f"SELECT COUNT(*) FROM {schema}.users")
+        total_users = cur.fetchone()[0]
 
         conn.commit()
         cur.close()
         conn.close()
+
+        if is_new:
+            phone_display = phone[:4] + '***' + phone[-2:] if len(phone) > 6 else phone
+            try:
+                send_admin_email(
+                    subject=f'👤 Новый пользователь PetTrack — {phone_display}',
+                    html=f'''
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f1114; color: #fff; padding: 24px;">
+                      <div style="border-top: 3px solid #0078d4; padding-top: 16px; margin-bottom: 20px;">
+                        <h2 style="font-size: 20px; color: #0078d4; margin: 0 0 4px;">👤 Новая регистрация</h2>
+                        <p style="color: #888; font-size: 12px; margin: 0;">PetTrack — система трекинга питомцев</p>
+                      </div>
+                      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                        <tr>
+                          <td style="padding: 10px 14px; background: #1a1d21; color: #aaa; font-size: 12px; width: 140px;">Телефон</td>
+                          <td style="padding: 10px 14px; background: #1a1d21; color: #fff; font-size: 15px; font-weight: bold;">{phone_display}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 10px 14px; color: #aaa; font-size: 12px;">ID пользователя</td>
+                          <td style="padding: 10px 14px; color: #00d4d8;">#{user_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 10px 14px; background: #1a1d21; color: #aaa; font-size: 12px;">Дата регистрации</td>
+                          <td style="padding: 10px 14px; background: #1a1d21; color: #fff;">{datetime.utcnow().strftime('%d.%m.%Y %H:%M')} UTC</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 10px 14px; color: #aaa; font-size: 12px;">Всего пользователей</td>
+                          <td style="padding: 10px 14px; color: #ff8c00; font-size: 18px; font-weight: bold;">{total_users}</td>
+                        </tr>
+                      </table>
+                      <a href="https://pet-tracker-app.poehali.dev/admin"
+                         style="display: inline-block; background: #0078d4; color: #fff; padding: 12px 24px; text-decoration: none; font-weight: bold; font-size: 14px;">
+                        Открыть панель администратора →
+                      </a>
+                    </div>
+                    '''
+                )
+            except Exception as e:
+                print(f'[EMAIL] Ошибка отправки: {e}')
 
         import base64
         token = base64.b64encode(f"{user_id}:{phone}:{datetime.utcnow().date()}".encode()).decode()
