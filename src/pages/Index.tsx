@@ -5,6 +5,7 @@ import PetProfile from '@/components/PetProfile';
 import VetBert from '@/components/VetBert';
 import AuthScreen from '@/components/AuthScreen';
 import Dobrohvostik from '@/components/Dobrohvostik';
+import PetNews from '@/components/PetNews';
 
 interface AuthUser {
   token: string;
@@ -14,7 +15,7 @@ interface AuthUser {
 
 const VETBERT_URL = 'https://functions.poehali.dev/12f25ae3-c3fd-4bde-99e1-7019420bee8a';
 
-type Screen = 'home' | 'map' | 'profile' | 'market' | 'charity';
+type Screen = 'home' | 'map' | 'profile' | 'market' | 'charity' | 'news';
 
 const DOG_IMG = 'https://cdn.poehali.dev/projects/4c79b83f-1c17-4270-8aec-fa2997e5d38a/files/7e18e7de-54fc-410e-9df6-6f3c6d1e4895.jpg';
 const CAT_IMG = 'https://cdn.poehali.dev/projects/4c79b83f-1c17-4270-8aec-fa2997e5d38a/files/192fe34f-442f-4594-a8cf-e68d44848a68.jpg';
@@ -190,6 +191,22 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
       )
     },
     {
+      id: 'news' as Screen, size: 'wide', color: '#1a1d21',
+      content: (
+        <div className="h-full flex items-center gap-4 px-4"
+          style={{ background: 'linear-gradient(135deg, #001a2d, #1a1d21)', borderLeft: '3px solid #0078d4' }}>
+          <div className="text-3xl flex-shrink-0">📰</div>
+          <div className="flex-1">
+            <p className="font-russo text-white text-base uppercase tracking-wide">Новости питомцев</p>
+            <p className="text-xs text-white/60 font-golos">Статьи · Комментарии · Ваши истории</p>
+          </div>
+          <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center" style={{ background: '#0078d4' }}>
+            <Icon name="BookOpen" size={13} className="text-white" />
+          </div>
+        </div>
+      )
+    },
+    {
       id: 'charity' as Screen, size: 'wide', color: '#1a1d21',
       content: (
         <div className="h-full flex items-center gap-4 px-4"
@@ -340,6 +357,7 @@ export default function Index() {
     { id: 'profile', icon: 'PawPrint', label: 'Питомцы' },
     { id: 'market', icon: 'ShoppingBag', label: 'Магазин' },
     { id: 'charity', icon: 'Heart', label: '🐾 Добро' },
+    { id: 'news', icon: 'BookOpen', label: '📰 Новости' },
   ];
 
   return (
@@ -376,6 +394,11 @@ export default function Index() {
         {screen === 'charity' && (
           <div className="flex-1 overflow-hidden flex flex-col pb-20">
             <Dobrohvostik />
+          </div>
+        )}
+        {screen === 'news' && (
+          <div className="flex-1 overflow-hidden flex flex-col pb-20">
+            <PetNews />
           </div>
         )}
       </div>

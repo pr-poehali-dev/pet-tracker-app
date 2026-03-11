@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Get articles",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "get_articles"},
+      "expectedStatus": 200
+    },
+    {
+      "name": "Submit story validation",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "submit_story", "pet_name": "", "title": "", "story": ""},
+      "expectedStatus": 400
+    }
+  ]
+}
