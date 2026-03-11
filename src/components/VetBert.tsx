@@ -22,9 +22,18 @@ const PET_CONTEXT = {
   weight: '4.2 кг',
 };
 
+const STORAGE_KEY = 'vetbert_history';
+
 export default function VetBert({ apiUrl }: { apiUrl: string }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pulse, setPulse] = useState(true);
@@ -35,6 +44,14 @@ export default function VetBert({ apiUrl }: { apiUrl: string }) {
     const t = setTimeout(() => setPulse(false), 4000);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      console.warn('VetBert: failed to save history', e);
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (open) {
@@ -125,9 +142,20 @@ export default function VetBert({ apiUrl }: { apiUrl: string }) {
               <p className="font-russo text-sm text-white tracking-wider">VetBERT</p>
               <p className="text-[10px] text-metro-teal font-golos">AI-ветеринарный помощник</p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-[10px] text-white/40 font-golos">онлайн</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[10px] text-white/40 font-golos">онлайн</span>
+              </div>
+              {messages.length > 0 && (
+                <button
+                  onClick={() => setMessages([])}
+                  className="text-[10px] text-white/30 font-golos hover:text-white/60 transition-colors px-1"
+                  title="Очистить историю"
+                >
+                  <Icon name="Trash2" size={13} />
+                </button>
+              )}
             </div>
           </div>
 
