@@ -3,6 +3,13 @@ import Icon from '@/components/ui/icon';
 import MapView from '@/components/MapView';
 import PetProfile from '@/components/PetProfile';
 import VetBert from '@/components/VetBert';
+import AuthScreen from '@/components/AuthScreen';
+
+interface AuthUser {
+  token: string;
+  user_id: number;
+  phone: string;
+}
 
 const VETBERT_URL = 'https://functions.poehali.dev/12f25ae3-c3fd-4bde-99e1-7019420bee8a';
 
@@ -289,6 +296,24 @@ function MarketScreen() {
 
 export default function Index() {
   const [screen, setScreen] = useState<Screen>('home');
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  function handleLogout() {
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token');
+    setUser(null);
+  }
+
+  if (!user) {
+    return <AuthScreen onAuth={setUser} />;
+  }
 
   const navItems: { id: Screen; icon: string; label: string }[] = [
     { id: 'home', icon: 'LayoutGrid', label: 'Главная' },
@@ -300,6 +325,20 @@ export default function Index() {
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#0f1114', maxWidth: 480, margin: '0 auto' }}>
       <StatusBar />
+
+      {/* User info bar */}
+      <div className="flex items-center justify-between px-4 py-1.5 border-b"
+        style={{ background: '#0a0c0e', borderColor: '#1a1d21' }}>
+        <div className="flex items-center gap-1.5">
+          <Icon name="User" size={12} className="text-metro-teal" />
+          <span className="text-[11px] text-white/40 font-golos">{user.phone}</span>
+        </div>
+        <button onClick={handleLogout}
+          className="flex items-center gap-1 text-[11px] text-white/30 font-golos hover:text-white/60 transition-colors">
+          <Icon name="LogOut" size={12} />
+          Выйти
+        </button>
+      </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
         {screen === 'home' && <HomeScreen onNavigate={setScreen} />}

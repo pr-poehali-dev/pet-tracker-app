@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Send OTP",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "send", "phone": "+79991234567"},
+      "expectedStatus": 200
+    },
+    {
+      "name": "Verify wrong OTP",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "verify", "phone": "+79991234567", "code": "000000"},
+      "expectedStatus": 401
+    }
+  ]
+}
