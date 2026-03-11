@@ -1,7 +1,27 @@
 import json
 import os
 import psycopg2
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+
+
+def send_admin_email(subject: str, html: str):
+    admin_email = os.environ.get('ADMIN_EMAIL', '')
+    gmail_password = os.environ.get('GMAIL_APP_PASSWORD', '')
+    if not admin_email or not gmail_password:
+        print('[EMAIL] ADMIN_EMAIL или GMAIL_APP_PASSWORD не заданы')
+        return
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = admin_email
+    msg['To'] = admin_email
+    msg.attach(MIMEText(html, 'html', 'utf-8'))
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(admin_email, gmail_password.replace(' ', ''))
+        server.sendmail(admin_email, admin_email, msg.as_string())
+    print(f'[EMAIL] Отправлено на {admin_email}')
 
 CORS = {
     'Access-Control-Allow-Origin': '*',
@@ -192,6 +212,39 @@ def handler(event: dict, context) -> dict:
         story_id = cur.fetchone()[0]
         conn.commit()
         cur.close(); conn.close()
+
+        # Отправляем email-уведомление администратору
+        author_display = phone[:4] + '***' + phone[-2:] if len(phone) > 6 else phone or 'Аноним'
+        try:
+            send_admin_email(
+                subject=f'🐾 Новая история от пользователя — «{body.get("title", "")}»',
+                html=f'''
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f1114; color: #fff; padding: 24px;">
+                  <div style="border-top: 3px solid #00d4d8; padding-top: 16px; margin-bottom: 20px;">
+                    <h2 style="font-size: 20px; color: #00d4d8; margin: 0 0 4px;">🐾 PetTrack — новая история</h2>
+                    <p style="color: #888; font-size: 12px; margin: 0;">Требует проверки в панели администратора</p>
+                  </div>
+                  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                    <tr><td style="padding: 8px 12px; background: #1a1d21; color: #aaa; font-size: 12px; width: 120px;">Автор</td>
+                        <td style="padding: 8px 12px; background: #1a1d21; color: #fff;">{author_display}</td></tr>
+                    <tr><td style="padding: 8px 12px; color: #aaa; font-size: 12px;">Питомец</td>
+                        <td style="padding: 8px 12px; color: #fff;">{body.get("pet_name", "")}</td></tr>
+                    <tr><td style="padding: 8px 12px; background: #1a1d21; color: #aaa; font-size: 12px;">Заголовок</td>
+                        <td style="padding: 8px 12px; background: #1a1d21; color: #fff; font-weight: bold;">{body.get("title", "")}</td></tr>
+                  </table>
+                  <div style="background: #1a1d21; border-left: 3px solid #00d4d8; padding: 16px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: #ccc;">
+                    {body.get("story", "").replace(chr(10), "<br>")}
+                  </div>
+                  <a href="https://pet-tracker-app.poehali.dev/admin"
+                     style="display: inline-block; background: #00d4d8; color: #000; padding: 12px 24px; text-decoration: none; font-weight: bold; font-size: 14px;">
+                    Открыть панель администратора →
+                  </a>
+                </div>
+                '''
+            )
+        except Exception as e:
+            print(f'[EMAIL] Ошибка отправки: {e}')
+
         return ok({'success': True, 'id': story_id})
 
     if action == 'get_stories':
