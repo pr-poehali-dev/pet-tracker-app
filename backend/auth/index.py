@@ -3,7 +3,31 @@ import os
 import random
 import string
 import psycopg2
+import urllib.request
+import urllib.parse
 from datetime import datetime, timedelta
+
+
+def send_sms(phone: str, code: str) -> bool:
+    api_id = os.environ.get('SMSRU_API_ID', '')
+    if not api_id:
+        print(f"[AUTH] SMSRU_API_ID не задан, OTP для {phone}: {code}")
+        return True
+
+    # Убираем + из номера для sms.ru
+    phone_clean = phone.lstrip('+')
+    message = f"Ваш код входа в PetTrack: {code}. Действителен 5 минут."
+    params = urllib.parse.urlencode({
+        'api_id': api_id,
+        'to': phone_clean,
+        'msg': message,
+        'json': 1,
+    })
+    url = f"https://sms.ru/sms/send?{params}"
+    req = urllib.request.urlopen(url, timeout=10)
+    resp = json.loads(req.read().decode())
+    print(f"[AUTH] sms.ru response: {resp}")
+    return resp.get('status') == 'OK'
 
 CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -57,12 +81,18 @@ def handler(event: dict, context) -> dict:
         cur.close()
         conn.close()
 
-        print(f"[AUTH] OTP для {phone}: {code}")
+        sms_sent = send_sms(phone, code)
+        if not sms_sent:
+            return {
+                'statusCode': 500,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'error': 'Не удалось отправить SMS, попробуйте позже'})
+            }
 
         return {
             'statusCode': 200,
             'headers': CORS_HEADERS,
-            'body': json.dumps({'success': True, 'dev_code': code})
+            'body': json.dumps({'success': True})
         }
 
     # --- Верификация OTP ---
