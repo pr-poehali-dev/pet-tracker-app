@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Icon from '@/components/ui/icon';
+import VetBertChat from '@/components/VetBertChat';
 
 const DOG_IMG = 'https://cdn.poehali.dev/projects/4c79b83f-1c17-4270-8aec-fa2997e5d38a/files/7e18e7de-54fc-410e-9df6-6f3c6d1e4895.jpg';
 const CAT_IMG = 'https://cdn.poehali.dev/projects/4c79b83f-1c17-4270-8aec-fa2997e5d38a/files/192fe34f-442f-4594-a8cf-e68d44848a68.jpg';
@@ -32,7 +33,7 @@ const PETS = [
 
 export default function PetProfile() {
   const [activeId, setActiveId] = useState(1);
-  const [tab, setTab] = useState<'info' | 'history'>('info');
+  const [tab, setTab] = useState<'info' | 'history' | 'vet'>('info');
   const pet = PETS.find(p => p.id === activeId)!;
 
   return (
@@ -118,25 +119,30 @@ export default function PetProfile() {
 
       {/* Tabs */}
       <div className="flex mx-4 mt-3">
-        {(['info', 'history'] as const).map(t => (
+        {([
+          { id: 'info', label: 'Данные' },
+          { id: 'history', label: 'История' },
+          { id: 'vet', label: '🐾 VetBERT' },
+        ] as const).map(t => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={t.id}
+            onClick={() => setTab(t.id)}
             className="flex-1 py-2 text-xs font-golos font-bold uppercase tracking-widest transition-colors"
             style={{
-              background: tab === t ? pet.color : 'transparent',
-              color: tab === t ? '#000' : '#ffffff66',
-              borderBottom: tab !== t ? '1px solid #2a2d33' : 'none',
+              background: tab === t.id ? (t.id === 'vet' ? '#00d4d8' : pet.color) : 'transparent',
+              color: tab === t.id ? '#000' : '#ffffff66',
+              borderBottom: tab !== t.id ? '1px solid #2a2d33' : 'none',
             }}
           >
-            {t === 'info' ? 'Данные' : 'История'}
+            {t.label}
           </button>
         ))}
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 mx-4 overflow-y-auto">
-        {tab === 'info' ? (
+      <div className={`flex-1 mx-4 ${tab === 'vet' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}
+        style={tab === 'vet' ? { background: '#0f1114', border: '1px solid #2a2d33', borderTop: 'none' } : {}}>
+        {tab === 'info' && (
           <div className="py-3 space-y-2">
             {[
               { icon: 'Dog', label: 'Порода', value: pet.breed },
@@ -162,7 +168,8 @@ export default function PetProfile() {
               + Редактировать данные
             </button>
           </div>
-        ) : (
+        )}
+        {tab === 'history' && (
           <div className="py-3 space-y-0 relative timeline-line">
             {pet.history.map((event, i) => (
               <div key={i} className="flex gap-3 pb-4 relative metro-fade-up"
@@ -184,6 +191,18 @@ export default function PetProfile() {
               + Добавить запись
             </button>
           </div>
+        )}
+        {tab === 'vet' && (
+          <VetBertChat
+            pet={{ name: pet.name, type: pet.type, breed: pet.breed, age: pet.age, weight: pet.weight }}
+            storageKey={`vetbert_pet_${pet.id}`}
+            quickQuestions={[
+              `Норма веса для ${pet.breed}?`,
+              `Как часто нужна вакцинация для ${pet.type.toLowerCase()}а?`,
+              `Признаки болезни у ${pet.type.toLowerCase()}а`,
+              `Чем кормить ${pet.breed}?`,
+            ]}
+          />
         )}
       </div>
     </div>
